@@ -554,7 +554,7 @@ namespace WotDataLib
             return resolveExtras(warnings, extra, origFilenames);
         }
 
-        private static HashSet<string> _languages = EnumStrong.GetValues<Language>().Select(l => l.GetIsoLanguageCode()).Concat("en").ToHashSet(StringComparer.OrdinalIgnoreCase);
+		private static HashSet<string> _languages = Enumerable.ToHashSet(EnumStrong.GetValues<Language>().Select(l => l.GetIsoLanguageCode()).Concat("en"), StringComparer.OrdinalIgnoreCase);
 
         private static unresolvedBuiltIn loadBuiltInFile(int fileVersion, string filename)
         {
@@ -710,7 +710,8 @@ namespace WotDataLib
                                 throw new WotDataUserError("ID header fields must not be empty");
                             if (headerID.Length == 0)
                                 throw new WotDataUserError("If present, the ID header must have at least one value");
-                            var ids = headerID.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                            var ids = Enumerable.ToHashSet(headerID, StringComparer.OrdinalIgnoreCase);
+
                             if (ids.Count != headerID.Length)
                                 throw new WotDataUserError("Duplicate column IDs are not allowed");
                         }
@@ -802,7 +803,7 @@ namespace WotDataLib
                         if (grp.Count() > 1)
                         {
                             warnings.Add("WotBuiltIn-{0}: Multiple entries found for tank {1} and game version {2}; all except for the last one will be ignored.".Fmt(builtin.FileVersion, grp.Key, ver.Key == null ? "<unspecified>" : ver.Key.ToString()));
-                            var set = ver.SkipLast(1).ToHashSet();
+                            var set = Enumerable.ToHashSet(ver.SkipLast(1));
                             builtin.Entries.RemoveAll(e => set.Contains(e));
                         }
                     }
@@ -810,7 +811,7 @@ namespace WotDataLib
                     foreach (var conseq in grp.OrderBy(e => e.GameVersionId ?? -1).GroupConsecutiveBy(e => e.Delete).Where(c => c.Key && c.Count > 1).ToList())
                     {
                         warnings.Add("WotBuiltIn-{0}: Redundant \"del\" entries for tank {1} found; ignored.".Fmt(builtin.FileVersion, grp.Key));
-                        var set = conseq.Skip(1).ToHashSet();
+                        var set = Enumerable.ToHashSet(conseq.Skip(1));
                         builtin.Entries.RemoveAll(e => set.Contains(e));
                     }
                 }

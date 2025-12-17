@@ -20,6 +20,12 @@ namespace WotDataLib
 
         public string ImageName { get; protected set; }
 
+        /// <summary>
+        /// Exact base filename (without extension) that was actually used when loading a 3D / 3D Large icon.
+        /// Null for non-3D icons.
+        /// </summary>
+        public string Real3DImageName { get; set; }
+
         /// <summary>Gets the context that this tank info belongs to.</summary>
         public WotContext Context { get; protected set; }
 
@@ -55,6 +61,7 @@ namespace WotDataLib
             ImageName = tank.ImageName;
             _extras = tank._extras;
             ClientData = tank.ClientData;
+            Real3DImageName = tank.Real3DImageName;
         }
 
         /// <summary>
