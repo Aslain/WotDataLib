@@ -34,27 +34,33 @@ namespace WotDataLib
 
             string scriptsFolder = string.IsNullOrEmpty(versionConfig.PathSourceScripts) ? @"res\scripts" : versionConfig.PathSourceScripts;
 
-            foreach (var country in countries)
-            {
-                JsonDict tanks, engines, guns, radios, shells;
-                string path;
+			foreach (var country in countries)
+			{
+				JsonDict tanks, engines, guns, radios, shells;
+				string path;
+				System.Diagnostics.Debug.WriteLine($"=== DEBUG: Processing country: {country} ===");
 
-                path = WotFileExporter.CombinePaths(installation.Path, versionConfig.PathVehicleList.Replace(@"""Country""", country));
-                try
-                {
-                    using (var stream = WotFileExporter.GetFileStream(path))
-                    {
-                        tanks = BxmlReader.ReadFile(stream);
-                    }
-                }
+				path = WotFileExporter.CombinePaths(installation.Path, versionConfig.PathVehicleList.Replace(@"""Country""", country));
+				try
+				{
+					System.Diagnostics.Debug.WriteLine($"DEBUG: Reading tanks from: {path}");
+					
+					using (var stream = WotFileExporter.GetFileStream(path))
+					{
+						tanks = BxmlReader.ReadFile(stream);
+						System.Diagnostics.Debug.WriteLine($"DEBUG: Tanks result type: {tanks?.GetType().Name}");
+					}
+				}
                 catch (Exception e) { throw new WotDataException("Couldn't read vehicle list for country \"{0}\" from file \"{1}\"".Fmt(country, path), e); }
 
                 path = WotFileExporter.CombinePaths(installation.Path, scriptsFolder, @"item_defs\vehicles\{0}\components\engines.xml").Fmt(country);
                 try
                 {
+					System.Diagnostics.Debug.WriteLine($"DEBUG: Reading engines from: {path}");
                     using (var stream = WotFileExporter.GetFileStream(path))
                     {
                         engines = BxmlReader.ReadFile(stream);
+						System.Diagnostics.Debug.WriteLine($"DEBUG: Engines result type: {engines?.GetType().Name}");
                     }
                 }
                 catch (Exception e) { throw new WotDataException("Couldn't read engines data for country \"{0}\" from file \"{1}\"".Fmt(country, path), e); }
@@ -62,9 +68,11 @@ namespace WotDataLib
                 path = WotFileExporter.CombinePaths(installation.Path, scriptsFolder, @"item_defs\vehicles\{0}\components\guns.xml").Fmt(country);
                 try
                 {
+					System.Diagnostics.Debug.WriteLine($"DEBUG: Reading guns from: {path}");
                     using (var stream = WotFileExporter.GetFileStream(path))
                     {
                         guns = BxmlReader.ReadFile(stream);
+						System.Diagnostics.Debug.WriteLine($"DEBUG: Guns result type: {guns?.GetType().Name}");
                     }
                 }
                 catch (Exception e) { throw new WotDataException("Couldn't read guns data for country \"{0}\" from file \"{1}\"".Fmt(country, path), e); }
@@ -72,9 +80,11 @@ namespace WotDataLib
                 path = WotFileExporter.CombinePaths(installation.Path, scriptsFolder, @"item_defs\vehicles\{0}\components\radios.xml").Fmt(country);
                 try
                 {
+					System.Diagnostics.Debug.WriteLine($"DEBUG: Reading radios from: {path}");
                     using (var stream = WotFileExporter.GetFileStream(path))
                     {
                         radios = BxmlReader.ReadFile(stream);
+						System.Diagnostics.Debug.WriteLine($"DEBUG: Radios result type: {radios?.GetType().Name}");
                     }
                 }
                 catch (Exception e) { throw new WotDataException("Couldn't read radios data for country \"{0}\" from file \"{1}\"".Fmt(country, path), e); }
@@ -82,9 +92,11 @@ namespace WotDataLib
                 path = WotFileExporter.CombinePaths(installation.Path, scriptsFolder, @"item_defs\vehicles\{0}\components\shells.xml").Fmt(country);
                 try
                 {
+					System.Diagnostics.Debug.WriteLine($"DEBUG: Reading shells from: {path}");
                     using (var stream = WotFileExporter.GetFileStream(path))
                     {
                         shells = BxmlReader.ReadFile(stream);
+						System.Diagnostics.Debug.WriteLine($"DEBUG: Shells result type: {shells?.GetType().Name}");
                     }
                 }
                 catch (Exception e) { throw new WotDataException("Couldn't read shells data for country \"{0}\" from file \"{1}\"".Fmt(country, path), e); }
@@ -96,53 +108,59 @@ namespace WotDataLib
 
                 try
                 {
+					System.Diagnostics.Debug.WriteLine($"DEBUG: Creating WdCountry for {country}");
                     Countries.Add(country, new WdCountry(country, this, tanks, engines, guns, radios, shells));
+					System.Diagnostics.Debug.WriteLine($"DEBUG: Successfully added country {country}");
                 }
                 catch (Exception e)
                 {
+					System.Diagnostics.Debug.WriteLine($"DEBUG: ERROR in WdCountry constructor: {e.Message}");
                     throw new WotDataException("Could not parse game data for country \"{0}\"".Fmt(country), e);
                 }
             }
 
-            foreach (var country in Countries.Values)
-            {
+			foreach (var country in Countries.Values)
+			{
                 // Link all the modules to each tank
-                foreach (var tank in country.Tanks.Values)
-                {
-                    foreach (var key in tank.RawExtra["chassis"].GetDict().Keys)
-                        tank.Chassis.Add(country.Chassis[key]);
-                    foreach (var key in tank.RawExtra["turrets0"].GetDict().Keys)
-                        tank.Turrets.Add(country.Turrets[key]);
-                    foreach (var key in tank.RawExtra["engines"].GetDict().Keys)
-                        tank.Engines.Add(country.Engines[key]);
-                    foreach (var key in tank.RawExtra["radios"].GetDict().Keys)
-                        if (key != "")
-                            tank.Radios.Add(country.Radios[key]);
-                }
+				foreach (var tank in country.Tanks.Values)
+				{
+					foreach (var key in tank.RawExtra["chassis"].GetDict().Keys)
+						if (country.Chassis.TryGetValue(key, out var chassis))
+							tank.Chassis.Add(chassis);
+					foreach (var key in tank.RawExtra["turrets0"].GetDict().Keys)
+						if (country.Turrets.TryGetValue(key, out var turret))
+							tank.Turrets.Add(turret);
+					foreach (var key in tank.RawExtra["engines"].GetDict().Keys)
+						if (country.Engines.TryGetValue(key, out var engine))
+							tank.Engines.Add(engine);
+					foreach (var key in tank.RawExtra["radios"].GetDict().Keys)
+						if (key != "" && country.Radios.TryGetValue(key, out var radio))
+							tank.Radios.Add(radio);
+				}
                 // Guns are a bit weird; it appears that there's a base definition + turret-specific overrides.
-                foreach (var turret in country.Turrets.Values)
-                    foreach (var kvp in turret.Raw["guns"].GetDict())
-                    {
-                        if (!country.Guns.ContainsKey(kvp.Key))
-                        {
-                            Warnings.Add("Could not complete gun loading for turret “{0}”, gun “{1}”.".Fmt(turret.Id, kvp.Key));
-                            continue;
-                        }
-                        var gun = country.Guns[kvp.Key].Clone();
-                        gun.UpdateFrom(kvp.Value.GetDict(), country);
-                        if (turret.Raw.ContainsKey("yawLimits")) // earlier game versions have this data in the turret record
-                        {
-                            var parts = turret.Raw["yawLimits"].WdString().Split(' ').Select(x => decimal.Parse(x, NumberStyles.Float, CultureInfo.InvariantCulture)).ToArray();
-                            gun.YawLeftLimit = parts[0]; // not too sure about which is which
-                            gun.YawRightLimit = parts[1];
-                        }
-                        turret.Guns.Add(gun);
-                    }
+				foreach (var turret in country.Turrets.Values)
+					foreach (var kvp in turret.Raw["guns"].GetDict())
+					{
+						if (!country.Guns.ContainsKey(kvp.Key))
+						{
+							Warnings.Add("Could not complete gun loading for turret \"{0}\", gun \"{1}\"".Fmt(turret.Id, kvp.Key));
+							continue;
+						}
+						var gun = country.Guns[kvp.Key].Clone();
+						gun.UpdateFrom(kvp.Value.GetDict(), country);
+						if (turret.Raw.ContainsKey("yawLimits"))  // earlier game versions have this data in the turret record
+						{
+							var parts = turret.Raw["yawLimits"].WdString().Split(' ').Select(x => decimal.Parse(x, NumberStyles.Float, CultureInfo.InvariantCulture)).ToArray();
+							gun.YawLeftLimit = parts[0]; // not too sure about which is which
+							gun.YawRightLimit = parts[1];
+						}
+						turret.Guns.Add(gun);
+					}
                 // Validate that the guns loaded fully
-                foreach (var gun in country.Guns.Values)
-                    try { gun.Validate(); }
-                    catch (Exception e) { Warnings.Add("Incomplete data for gun “{0}”: {1}".Fmt(gun.Id, e.Message)); }
-            }
+				foreach (var gun in country.Guns.Values)
+					try { gun.Validate(); }
+					catch (Exception e) { Warnings.Add("Incomplete data for gun \"{0}\": {1}".Fmt(gun.Id, e.Message)); }
+			}
 
             // Clear the string data, since it's no longer needed
             _moFiles.Clear();
@@ -200,65 +218,183 @@ namespace WotDataLib
         public IDictionary<string, WdShell> Shells { get; set; }
 
         public WdCountry(string name, WdData data, JsonDict tanks, JsonDict engines, JsonDict guns, JsonDict radios, JsonDict shells)
-        {
-            Name = name;
+		{
+			System.Diagnostics.Debug.WriteLine($"=== DEBUG: WdCountry constructor for {name} ===");
+			System.Diagnostics.Debug.WriteLine($"DEBUG: tanks count: {tanks?.Count ?? 0}");
+			System.Diagnostics.Debug.WriteLine($"DEBUG: engines type: {engines?.GetType().Name}, has 'shared': {engines?.ContainsKey("shared")}");
+			System.Diagnostics.Debug.WriteLine($"DEBUG: guns type: {guns?.GetType().Name}, has 'shared': {guns?.ContainsKey("shared")}");
+			System.Diagnostics.Debug.WriteLine($"DEBUG: radios type: {radios?.GetType().Name}, has 'shared': {radios?.ContainsKey("shared")}");
+			System.Diagnostics.Debug.WriteLine($"DEBUG: shells type: {shells?.GetType().Name}, count: {shells?.Count}");
+			
+			Name = name;
 
-            Engines = new Dictionary<string, WdEngine>();
-            foreach (var kvp in engines["shared"].GetDict())
-            {
-                var engine = new WdEngine(kvp.Key, kvp.Value.GetDict(), data);
-                Engines.Add(kvp.Key, engine);
-            }
+			Engines = new Dictionary<string, WdEngine>();
+			
+			System.Diagnostics.Debug.WriteLine($"DEBUG: Processing engines for {name}");
+			if (!engines.ContainsKey("shared"))
+			{
+				System.Diagnostics.Debug.WriteLine($"DEBUG: ERROR: engines doesn't have 'shared' key");
+				System.Diagnostics.Debug.WriteLine($"DEBUG: Available keys in engines: {string.Join(", ", engines.Keys)}");
+			}
+			else 
+			{
+				var sharedEngines = engines["shared"];
+				if (!(sharedEngines is JsonDict))
+				{
+					System.Diagnostics.Debug.WriteLine($"DEBUG: ERROR: engines['shared'] is not JsonDict but {sharedEngines.GetType().Name}");
+					System.Diagnostics.Debug.WriteLine($"DEBUG: engines['shared'] value: {sharedEngines}");
+				}
+				else
+				{
+					foreach (var kvp in ((JsonDict)sharedEngines).GetDict())
+					{
+						if (!(kvp.Value is JsonDict))
+						{
+							System.Diagnostics.Debug.WriteLine($"DEBUG: WARNING: engine '{kvp.Key}' value is not JsonDict but {kvp.Value.GetType().Name}");
+							continue;
+						}
+						var engine = new WdEngine(kvp.Key, kvp.Value.GetDict(), data);
+						Engines.Add(kvp.Key, engine);
+					}
+				}
+			}
 
-            Radios = new Dictionary<string, WdRadio>();
-            foreach (var kvp in radios["shared"].GetDict())
-            {
-                var radio = new WdRadio(kvp.Key, kvp.Value.GetDict(), data);
-                Radios.Add(kvp.Key, radio);
-            }
+			Radios = new Dictionary<string, WdRadio>();
+			
+			System.Diagnostics.Debug.WriteLine($"DEBUG: Processing radios for {name}");
+			if (!radios.ContainsKey("shared"))
+			{
+				System.Diagnostics.Debug.WriteLine($"DEBUG: ERROR: radios doesn't have 'shared' key");
+				System.Diagnostics.Debug.WriteLine($"DEBUG: Available keys in radios: {string.Join(", ", radios.Keys)}");
+			}
+			else 
+			{
+				var sharedRadios = radios["shared"];
+				if (!(sharedRadios is JsonDict))
+				{
+					System.Diagnostics.Debug.WriteLine($"DEBUG: ERROR: radios['shared'] is not JsonDict but {sharedRadios.GetType().Name}");
+					System.Diagnostics.Debug.WriteLine($"DEBUG: radios['shared'] value: {sharedRadios}");
+				}
+				else
+				{
+					foreach (var kvp in ((JsonDict)sharedRadios).GetDict())
+					{
+						if (!(kvp.Value is JsonDict))
+						{
+							System.Diagnostics.Debug.WriteLine($"DEBUG: WARNING: radio '{kvp.Key}' value is not JsonDict but {kvp.Value.GetType().Name}");
+							continue;
+						}
+						var radio = new WdRadio(kvp.Key, kvp.Value.GetDict(), data);
+						Radios.Add(kvp.Key, radio);
+					}
+				}
+			}
 
-            Shells = new Dictionary<string, WdShell>();
-            foreach (var kvp in shells.GetDict())
-            {
-                if (kvp.Key == "icons")
-                    continue;
-                var shell = new WdShell(kvp.Key, kvp.Value.GetDict(), data);
-                Shells.Add(kvp.Key, shell);
-            }
+			Shells = new Dictionary<string, WdShell>();
+			
+			System.Diagnostics.Debug.WriteLine($"DEBUG: Processing shells for {name}");
+			foreach (var kvp in shells.GetDict())
+			{
+				string tag = kvp.Key;
+				
+				if (tag == "icons" || tag.StartsWith("xmlns:") || tag.Contains("xmlref") || tag == "")
+					continue;
+				
+				if (!(kvp.Value is JsonDict))
+				{
+					System.Diagnostics.Debug.WriteLine($"DEBUG: ERROR: shell '{tag}' value is not JsonDict but {kvp.Value.GetType().Name}");
+					System.Diagnostics.Debug.WriteLine($"DEBUG: shell '{tag}' value: {kvp.Value}");
+					continue;
+				}
+				
+				var shell = new WdShell(tag, kvp.Value.GetDict(), data);
+				Shells.Add(tag, shell);
+			}
 
-            Guns = new Dictionary<string, WdGun>();
-            foreach (var kvp in guns["shared"].GetDict())
-            {
-                try
-                {
-                    var gun = new WdGun(kvp.Key, kvp.Value.GetDict(), data, this);
-                    Guns.Add(kvp.Key, gun);
-                }
-                catch
-                {
-                    data.Warnings.Add("Could not load gun data for gun “{0}”".Fmt(kvp.Key));
-                }
-            }
+			Guns = new Dictionary<string, WdGun>();
+			
+			System.Diagnostics.Debug.WriteLine($"DEBUG: Processing guns for {name}");
+			if (!guns.ContainsKey("shared"))
+			{
+				System.Diagnostics.Debug.WriteLine($"DEBUG: ERROR: guns doesn't have 'shared' key");
+				System.Diagnostics.Debug.WriteLine($"DEBUG: Available keys in guns: {string.Join(", ", guns.Keys)}");
+			}
+			else 
+			{
+				var sharedGuns = guns["shared"];
+				if (!(sharedGuns is JsonDict))
+				{
+					System.Diagnostics.Debug.WriteLine($"DEBUG: ERROR: guns['shared'] is not JsonDict but {sharedGuns.GetType().Name}");
+					System.Diagnostics.Debug.WriteLine($"DEBUG: guns['shared'] value: {sharedGuns}");
+				}
+				else
+				{
+					foreach (var kvp in ((JsonDict)sharedGuns).GetDict())
+					{
+						try
+						{
+							if (!(kvp.Value is JsonDict))
+							{
+								System.Diagnostics.Debug.WriteLine($"DEBUG: WARNING: gun '{kvp.Key}' value is not JsonDict but {kvp.Value.GetType().Name}");
+								System.Diagnostics.Debug.WriteLine($"DEBUG: gun '{kvp.Key}' value: {kvp.Value}");
+								continue;
+							}
+							
+							var gun = new WdGun(kvp.Key, kvp.Value.GetDict(), data, this);
+							Guns.Add(kvp.Key, gun);
+						}
+						catch (Exception ex)
+						{
+							System.Diagnostics.Debug.WriteLine($"DEBUG: ERROR creating gun '{kvp.Key}': {ex.Message}");
+							data.Warnings.Add("Could not load gun data for gun \"{0}\"".Fmt(kvp.Key));
+						}
+					}
+				}
+			}
 
-            Tanks = new Dictionary<string, WdTank>();
-            Chassis = new Dictionary<string, WdChassis>();
-            Turrets = new Dictionary<string, WdTurret>();
-            foreach (var kvp in tanks.GetDict())
-            {
-                try
-                {
-                    if (kvp.Key == "xmlns:xmlref" || kvp.Key == "")
-                        continue; // this tank is weird; it's the only one which has non-"shared" modules with identical keys to another tank. Ignore it.
-                    var tank = new WdTank(kvp.Key, kvp.Value.GetDict(), this, data);
-                    Tanks.Add(tank.RawId, tank);
-                }
-                catch (Exception e)
-                {
-                    throw new WotDataException("Could not parse game data for vehicle \"{0}\"".Fmt(kvp.Key), e);
-                }
-            }
-        }
-    }
+			Tanks = new Dictionary<string, WdTank>();
+			Chassis = new Dictionary<string, WdChassis>();
+			Turrets = new Dictionary<string, WdTurret>();
+			
+			System.Diagnostics.Debug.WriteLine($"DEBUG: Processing tanks for {name}, count: {tanks.Count}");
+			
+			foreach (var kvp in tanks.GetDict())
+			{
+				try
+				{
+					string tag = kvp.Key;
+					
+					System.Diagnostics.Debug.WriteLine($"DEBUG: Processing tank key: '{tag}'");
+					
+					if (tag == "xmlns:xmlref" || tag == "" || tag.StartsWith("xmlns:") || tag.Contains("xmlref") || tag == "icons")
+					{
+						System.Diagnostics.Debug.WriteLine($"DEBUG: Skipping tank key '{tag}'");
+						continue; // this tank is weird; it's the only one which has non-"shared" modules with identical keys to another tank. Ignore it.
+					}
+					
+					if (!(kvp.Value is JsonDict))
+					{
+						System.Diagnostics.Debug.WriteLine($"DEBUG: ERROR: tank '{tag}' value is not JsonDict but {kvp.Value.GetType().Name}");
+						System.Diagnostics.Debug.WriteLine($"DEBUG: tank '{tag}' value: {kvp.Value}");
+						continue;
+					}
+					
+					var tank = new WdTank(tag, kvp.Value.GetDict(), this, data);
+					Tanks.Add(tank.RawId, tank);
+				}
+				catch (Exception e)
+				{
+					System.Diagnostics.Debug.WriteLine($"DEBUG: ERROR processing tank '{kvp.Key}': {e.Message}");
+					System.Diagnostics.Debug.WriteLine($"DEBUG: Stack trace: {e.StackTrace}");
+					continue;
+					throw new WotDataException("Could not parse game data for vehicle \"{0}\"".Fmt(kvp.Key), e);
+				}
+			}
+			
+			System.Diagnostics.Debug.WriteLine($"DEBUG: Finished WdCountry for {name}");
+			System.Diagnostics.Debug.WriteLine($"DEBUG: Engines: {Engines.Count}, Radios: {Radios.Count}, Shells: {Shells.Count}, Guns: {Guns.Count}, Tanks: {Tanks.Count}");
+		}
+}
 
     public sealed class WdTank
     {
@@ -297,8 +433,8 @@ namespace WotDataLib
         /// <summary>
         ///     Gets the top turret by level, price and the number of compatible guns. Note that in the game data files, *all*
         ///     tanks have turrets, even those with turrets that don't rotate. Therefore this property is never null.</summary>
-        public WdTurret TopTurret { get { return Turrets.OrderBy(t => t.Level).ThenBy(t => t.Price).ThenBy(t => t.Guns.Count).Last(); } }
-        public WdGun TopGun { get { return TopTurret.Guns.OrderBy(t => t.Level).ThenBy(t => t.Price).Last(); } }
+		public WdTurret TopTurret => Turrets?.OrderByDescending(t => t.Level).ThenByDescending(t => t.Price).FirstOrDefault();
+		public WdGun TopGun => TopTurret?.Guns?.OrderByDescending(t => t.Level).ThenByDescending(t => t.Price).FirstOrDefault();
 
         public WdTank(string id, JsonDict json, WdCountry country, WdData data)
         {
@@ -591,7 +727,7 @@ namespace WotDataLib
         {
             Raw = gun;
             Id = id;
-            Name = data.ResolveString(gun["userString"].WdString());
+			Name = WdDataHelpers.SafeStr(gun["userString"]);
             Shells = new List<WdShell>();
             PitchUpLimit = -999;
             PitchDownLimit = -999;
@@ -747,27 +883,29 @@ namespace WotDataLib
         }
     }
 
-    static class WdDataHelpers
-    {
-        public static int WdInt(this JsonValue value)
-        {
-            if (value is JsonDict)
-                value = value[""];
-            return value.GetInt(NumericConversionOptions.AllowConversionFromString | NumericConversionOptions.AllowZeroFractionToInteger);
-        }
+	static class WdDataHelpers
+	{
+		public static int WdInt(this JsonValue value)
+		{
+			if (value is JsonDict)
+				value = value[""];
+			return value.GetInt(NumericConversionOptions.AllowConversionFromString | NumericConversionOptions.AllowZeroFractionToInteger);
+		}
 
-        public static decimal WdDecimal(this JsonValue value)
-        {
-            if (value is JsonDict)
-                value = value[""];
-            return value.GetDecimal(NumericConversionOptions.AllowConversionFromString);
-        }
+		public static decimal WdDecimal(this JsonValue value)
+		{
+			if (value is JsonDict)
+				value = value[""];
+			return value.GetDecimal(NumericConversionOptions.AllowConversionFromString);
+		}
 
-        public static string WdString(this JsonValue value)
-        {
-            if (value is JsonDict)
-                value = value[""];
-            return value.GetString();
-        }
-    }
+		public static string WdString(this JsonValue value)
+		{
+			if (value is JsonDict)
+				value = value[""];
+			return value.GetString();
+		}
+
+		public static string SafeStr(JsonValue val) => WdString(val);
+	}
 }
