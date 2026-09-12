@@ -48,6 +48,16 @@ namespace WotDataLib
         /// </summary>
         public string PathSource3DLarge { get; private set; }
         /// <summary>
+        ///     Relative path to the directory containing 3D tank images.
+        ///     May refer to a zip file with a colon separating the path within the zip.
+        /// </summary>
+        public string PathSource3Dv2 { get; private set; }
+        /// <summary>
+        ///     Relative path to the directory containing 3D (large) tank images.
+        ///     May refer to a zip file with a colon separating the path within the zip.
+        /// </summary>
+        public string PathSource3DLargev2 { get; private set; }
+        /// <summary>
         ///     Absolute path to the directory containing nation tank images.
         ///     May refer to a zip file with a colon separating the path within the zip.
         /// </summary>
