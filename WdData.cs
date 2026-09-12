@@ -110,14 +110,38 @@ namespace WotDataLib
                 foreach (var tank in country.Tanks.Values)
                 {
                     foreach (var key in tank.RawExtra["chassis"].GetDict().Keys)
-                        tank.Chassis.Add(country.Chassis[key]);
+                    {
+                        WdChassis chassis;
+                        if (country.Chassis.TryGetValue(key, out chassis))
+                            tank.Chassis.Add(chassis);
+                        else
+                            Warnings.Add("Could not find chassis “{0}” of vehicle “{1}”.".Fmt(key, tank.RawId));
+                    }
                     foreach (var key in tank.RawExtra["turrets0"].GetDict().Keys)
-                        tank.Turrets.Add(country.Turrets[key]);
+                    {
+                        WdTurret turret;
+                        if (country.Turrets.TryGetValue(key, out turret))
+                            tank.Turrets.Add(turret);
+                        else
+                            Warnings.Add("Could not find turret “{0}” of vehicle “{1}”.".Fmt(key, tank.RawId));
+                    }
                     foreach (var key in tank.RawExtra["engines"].GetDict().Keys)
-                        tank.Engines.Add(country.Engines[key]);
+                    {
+                        WdEngine engine;
+                        if (country.Engines.TryGetValue(key, out engine))
+                            tank.Engines.Add(engine);
+                        else
+                            Warnings.Add("Could not find engine “{0}” of vehicle “{1}”.".Fmt(key, tank.RawId));
+                    }
                     foreach (var key in tank.RawExtra["radios"].GetDict().Keys)
                         if (key != "")
-                            tank.Radios.Add(country.Radios[key]);
+                        {
+                            WdRadio radio;
+                            if (country.Radios.TryGetValue(key, out radio))
+                                tank.Radios.Add(radio);
+                            else
+                                Warnings.Add("Could not find radio “{0}” of vehicle “{1}”.".Fmt(key, tank.RawId));
+                        }
                 }
                 // Guns are a bit weird; it appears that there's a base definition + turret-specific overrides.
                 foreach (var turret in country.Turrets.Values)
@@ -204,14 +228,14 @@ namespace WotDataLib
             Name = name;
 
             Engines = new Dictionary<string, WdEngine>();
-            foreach (var kvp in engines["shared"].GetDict())
+            foreach (var kvp in sharedModules(engines, "engine", data))
             {
                 var engine = new WdEngine(kvp.Key, kvp.Value.GetDict(), data);
                 Engines.Add(kvp.Key, engine);
             }
 
             Radios = new Dictionary<string, WdRadio>();
-            foreach (var kvp in radios["shared"].GetDict())
+            foreach (var kvp in sharedModules(radios, "radio", data))
             {
                 var radio = new WdRadio(kvp.Key, kvp.Value.GetDict(), data);
                 Radios.Add(kvp.Key, radio);
@@ -220,7 +244,7 @@ namespace WotDataLib
             Shells = new Dictionary<string, WdShell>();
             foreach (var kvp in shells.GetDict())
             {
-                if (kvp.Key == "icons")
+                if (kvp.Key == "icons" || isXmlArtefact(kvp.Key))
                     continue;
                 if (!(kvp.Value is RT.Util.Json.JsonDict))
                 {
@@ -232,7 +256,7 @@ namespace WotDataLib
             }
 
             Guns = new Dictionary<string, WdGun>();
-            foreach (var kvp in guns["shared"].GetDict())
+            foreach (var kvp in sharedModules(guns, "gun", data))
             {
                 try
                 {
@@ -252,16 +276,46 @@ namespace WotDataLib
             {
                 try
                 {
-                    if (kvp.Key == "xmlns:xmlref" || kvp.Key == "")
+                    if (kvp.Key == "icons" || isXmlArtefact(kvp.Key))
                         continue; // this tank is weird; it's the only one which has non-"shared" modules with identical keys to another tank. Ignore it.
+                    if (!(kvp.Value is RT.Util.Json.JsonDict))
+                    {
+                        data.Warnings.Add("Skipping unexpected vehicle entry “{0}” of type {1}.".Fmt(kvp.Key, kvp.Value.GetType().Name));
+                        continue;
+                    }
                     var tank = new WdTank(kvp.Key, kvp.Value.GetDict(), this, data);
                     Tanks.Add(tank.RawId, tank);
                 }
                 catch (Exception e)
                 {
-                    throw new WotDataException("Could not parse game data for vehicle \"{0}\"".Fmt(kvp.Key), e);
+                    // A single unreadable vehicle used to abort the whole country, which left the user without any icons at all
+                    data.Warnings.Add("Could not parse game data for vehicle “{0}”: {1}".Fmt(kvp.Key, e.Message));
                 }
             }
+        }
+
+        /// <summary>
+        ///     Enumerates the entries of the “shared” section of a module file. That section is missing entirely in some
+        ///     clients, and single entries in it are occasionally something other than a dictionary; such a file or entry is
+        ///     skipped with a warning instead of failing the whole load.</summary>
+        private static IEnumerable<KeyValuePair<string, JsonValue>> sharedModules(JsonDict modules, string what, WdData data)
+        {
+            if (modules == null || !modules.ContainsKey("shared") || !(modules["shared"] is JsonDict))
+            {
+                data.Warnings.Add("Skipping all {0} data: no usable “shared” section.".Fmt(what));
+                yield break;
+            }
+            foreach (var kvp in modules["shared"].GetDict())
+                if (kvp.Value is JsonDict)
+                    yield return kvp;
+                else
+                    data.Warnings.Add("Skipping unexpected {0} entry “{1}” of type {2}.".Fmt(what, kvp.Key, kvp.Value.GetType().Name));
+        }
+
+        /// <summary>Determines whether a key is one of the XML namespace or reference artefacts, and not a real entry.</summary>
+        private static bool isXmlArtefact(string key)
+        {
+            return key == "" || key.StartsWith("xmlns:") || key.Contains("xmlref");
         }
     }
 
