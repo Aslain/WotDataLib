@@ -354,10 +354,12 @@ namespace WotDataLib
         public IList<WdRadio> Radios { get; set; }
 
         /// <summary>
-        ///     Gets the top turret by level, price and the number of compatible guns. Note that in the game data files, *all*
-        ///     tanks have turrets, even those with turrets that don't rotate. Therefore this property is never null.</summary>
-        public WdTurret TopTurret { get { return Turrets.OrderBy(t => t.Level).ThenBy(t => t.Price).ThenBy(t => t.Guns.Count).Last(); } }
-        public WdGun TopGun { get { return TopTurret.Guns.OrderBy(t => t.Level).ThenBy(t => t.Price).Last(); } }
+        ///     Gets the top turret by level, price and the number of compatible guns. In the game data files virtually all
+        ///     tanks have turrets, even those with turrets that don't rotate, but recent clients do contain entries without
+        ///     any, so this property can be null.</summary>
+        public WdTurret TopTurret { get { return Turrets.OrderBy(t => t.Level).ThenBy(t => t.Price).ThenBy(t => t.Guns.Count).LastOrDefault(); } }
+        /// <summary>Gets the top gun of the top turret by level and price; null when there is no turret or no gun.</summary>
+        public WdGun TopGun { get { var turret = TopTurret; return turret == null ? null : turret.Guns.OrderBy(t => t.Level).ThenBy(t => t.Price).LastOrDefault(); } }
 
         public WdTank(string id, JsonDict json, WdCountry country, WdData data)
         {

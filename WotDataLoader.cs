@@ -289,7 +289,7 @@ namespace WotDataLib
                 { "Ru", "Содержит \"*\" для танков, чья топовая пушка имеет барабан." },
                 { "En", "Contains \"*\" for tanks whose top gun has a drum." },
             };
-            hasDrumTopGun.Entries = wd.Tanks.Where(t => t.TopGun.HasDrum).Select(tank =>
+            hasDrumTopGun.Entries = wd.Tanks.Where(t => t.TopGun != null && t.TopGun.HasDrum).Select(tank =>
                 new ExtraEntry(tank.Id, "*", installation.GameVersionId)
             ).ToList();
 
@@ -318,9 +318,11 @@ namespace WotDataLib
                 { "En", "Penetration using the best gun/shell (except premium shells)." },
             };
             gunsMaxPenetration.Entries = wd.Tanks.Select(tank =>
-                new ExtraEntry(tank.Id, (tank.Turrets.SelectMany(t => t.Guns).SelectMany(g => g.Shells).Where(s => !s.Gold).Max(s => s.PenetrationArmor)).ToString(),
-                    installation.GameVersionId)
-            ).ToList();
+            {
+                var shells = tank.Turrets.SelectMany(t => t.Guns).SelectMany(g => g.Shells).Where(s => !s.Gold);
+                return new ExtraEntry(tank.Id, (shells.Any() ? shells.Max(s => s.PenetrationArmor) : 0).ToString(),
+                    installation.GameVersionId);
+            }).ToList();
 
 
             // Maximum damage
@@ -333,9 +335,11 @@ namespace WotDataLib
                 { "En", "Damage using the best gun/shell (except premium shells)." },
             };
             gunsMaxDamage.Entries = wd.Tanks.Select(tank =>
-                new ExtraEntry(tank.Id, (tank.Turrets.SelectMany(t => t.Guns).SelectMany(g => g.Shells).Where(s => !s.Gold).Max(s => s.DamageArmor)).ToString(),
-                    installation.GameVersionId)
-            ).ToList();
+            {
+                var shells = tank.Turrets.SelectMany(t => t.Guns).SelectMany(g => g.Shells).Where(s => !s.Gold);
+                return new ExtraEntry(tank.Id, (shells.Any() ? shells.Max(s => s.DamageArmor) : 0).ToString(),
+                    installation.GameVersionId);
+            }).ToList();
 
 
             // Damage using the most penetrating shell
@@ -348,9 +352,11 @@ namespace WotDataLib
                 { "En", "Damage using the most penetrating gun/shell (except premium shells)." },
             };
             gunsMaxPenetrationDamage.Entries = wd.Tanks.Select(tank =>
-                new ExtraEntry(tank.Id, (tank.Turrets.SelectMany(t => t.Guns).SelectMany(g => g.Shells).Where(s => !s.Gold).MaxElement(s => s.PenetrationArmor).DamageArmor).ToString(),
-                    installation.GameVersionId)
-            ).ToList();
+            {
+                var shells = tank.Turrets.SelectMany(t => t.Guns).SelectMany(g => g.Shells).Where(s => !s.Gold);
+                return new ExtraEntry(tank.Id, (shells.Any() ? shells.MaxElement(s => s.PenetrationArmor).DamageArmor : 0).ToString(),
+                    installation.GameVersionId);
+            }).ToList();
 
 
             // Top gun reload time
@@ -363,7 +369,7 @@ namespace WotDataLib
                 { "En", "Top gun reload time." },
             };
             gunsTopGunReloadTime.Entries = wd.Tanks.Select(tank =>
-                new ExtraEntry(tank.Id, tank.TopGun.ReloadTime.ToString(),
+                new ExtraEntry(tank.Id, (tank.TopGun == null ? 0 : tank.TopGun.ReloadTime).ToString(),
                     installation.GameVersionId)
             ).ToList();
 
