@@ -1,13 +1,12 @@
-﻿using RT.Util;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using RT.Util;
 using RT.Util.Collections;
 using RT.Util.ExtensionMethods;
 using RT.Util.Lingo;
 using RT.Util.Serialization;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace WotDataLib
 {
@@ -308,68 +307,72 @@ namespace WotDataLib
                 new ExtraEntry(tank.Id, "*", installation.GameVersionId)
             ).ToList();
 
-			// Maximum penetration
-			var gunsMaxPenetration = new unresolvedExtraFileCol();
-			gunsMaxPenetration.PropertyId = new ExtraPropertyId("Guns", "MaxPenetration", "Wargaming");
-			gunsMaxPenetration.FileVersion = 0;
-			gunsMaxPenetration.Descriptions = new Dictionary<string, string>
-			{
-				{ "Ru", "Пробитие лучшей пушкой/снарядом (кроме голды)." },
-				{ "En", "Penetration using the best gun/shell (except premium shells)." },
-			};
-			gunsMaxPenetration.Entries = wd.Tanks.Select(tank => 
-			{
-				var shellsPen = tank.Turrets.SelectMany(t => t.Guns).SelectMany(g => g.Shells).Where(s => !s.Gold);
-				var maxPen = shellsPen.Any() ? shellsPen.Max(s => s.PenetrationArmor).ToString() : "0";
-				return new ExtraEntry(tank.Id, maxPen, installation.GameVersionId);
-			}).ToList();
 
-			// Maximum damage
-			var gunsMaxDamage = new unresolvedExtraFileCol();
-			gunsMaxDamage.PropertyId = new ExtraPropertyId("Guns", "MaxDamage", "Wargaming");
-			gunsMaxDamage.FileVersion = 0;
-			gunsMaxDamage.Descriptions = new Dictionary<string, string>
-			{
-				{ "Ru", "Урон лучшей пушкой/снарядом (кроме голды)." },
-				{ "En", "Damage using the best gun/shell (except premium shells)." },
-			};
-			gunsMaxDamage.Entries = wd.Tanks.Select(tank =>
-			{
-				var shellsDamage = tank.Turrets.SelectMany(t => t.Guns).SelectMany(g => g.Shells).Where(s => !s.Gold);
-				var maxDamage = shellsDamage.Any() ? shellsDamage.Max(s => s.DamageArmor).ToString() : "0";
-				return new ExtraEntry(tank.Id, maxDamage, installation.GameVersionId);
-			}).ToList();
+            // Maximum penetration
+            var gunsMaxPenetration = new unresolvedExtraFileCol();
+            gunsMaxPenetration.PropertyId = new ExtraPropertyId("Guns", "MaxPenetration", "Wargaming");
+            gunsMaxPenetration.FileVersion = 0;
+            gunsMaxPenetration.Descriptions = new Dictionary<string, string>
+            {
+                { "Ru", "Пробитие лучшей пушкой/снарядом (кроме голды)." },
+                { "En", "Penetration using the best gun/shell (except premium shells)." },
+            };
+            gunsMaxPenetration.Entries = wd.Tanks.Select(tank =>
+            {
+                var shells = tank.Turrets.SelectMany(t => t.Guns).SelectMany(g => g.Shells).Where(s => !s.Gold);
+                return new ExtraEntry(tank.Id, (shells.Any() ? shells.Max(s => s.PenetrationArmor) : 0).ToString(),
+                    installation.GameVersionId);
+            }).ToList();
 
-			// Damage using the most penetrating shell
-			var gunsMaxPenetrationDamage = new unresolvedExtraFileCol();
-			gunsMaxPenetrationDamage.PropertyId = new ExtraPropertyId("Guns", "MaxPenetrationDamage", "Wargaming");
-			gunsMaxPenetrationDamage.FileVersion = 0;
-			gunsMaxPenetrationDamage.Descriptions = new Dictionary<string, string>
-			{
-				{ "Ru", "Урон пушкой/снарядом с лучшим пробитием (кроме голды)." },
-				{ "En", "Damage using the most penetrating gun/shell (except premium shells)." },
-			};
-			gunsMaxPenetrationDamage.Entries = wd.Tanks.Select(tank => 
-			{
-				var shellsPen = tank.Turrets.SelectMany(t => t.Guns).SelectMany(g => g.Shells).Where(s => !s.Gold);
-				var maxPenShell = shellsPen.Any() ? shellsPen.OrderByDescending(s => s.PenetrationArmor).FirstOrDefault() : null;
-				var maxPenDamage = maxPenShell != null ? maxPenShell.DamageArmor.ToString() : "0";
-				return new ExtraEntry(tank.Id, maxPenDamage, installation.GameVersionId);
-			}).ToList();
 
-			// Top gun reload time
-			var gunsTopGunReloadTime = new unresolvedExtraFileCol();
-			gunsTopGunReloadTime.PropertyId = new ExtraPropertyId("Guns", "TopGunReloadTime", "Wargaming");
-			gunsTopGunReloadTime.FileVersion = 0;
-			gunsTopGunReloadTime.Descriptions = new Dictionary<string, string>
-			{
-				{ "Ru", "Время перезарядки топового орудия." },
-				{ "En", "Top gun reload time." },
-			};
-			gunsTopGunReloadTime.Entries = wd.Tanks.Select(tank =>
-				new ExtraEntry(tank.Id, (tank.TopGun?.ReloadTime ?? 0).ToString(),
-					installation.GameVersionId)
-			).ToList();
+            // Maximum damage
+            var gunsMaxDamage = new unresolvedExtraFileCol();
+            gunsMaxDamage.PropertyId = new ExtraPropertyId("Guns", "MaxDamage", "Wargaming");
+            gunsMaxDamage.FileVersion = 0;
+            gunsMaxDamage.Descriptions = new Dictionary<string, string>
+            {
+                { "Ru", "Урон лучшей пушкой/снарядом (кроме голды)." },
+                { "En", "Damage using the best gun/shell (except premium shells)." },
+            };
+            gunsMaxDamage.Entries = wd.Tanks.Select(tank =>
+            {
+                var shells = tank.Turrets.SelectMany(t => t.Guns).SelectMany(g => g.Shells).Where(s => !s.Gold);
+                return new ExtraEntry(tank.Id, (shells.Any() ? shells.Max(s => s.DamageArmor) : 0).ToString(),
+                    installation.GameVersionId);
+            }).ToList();
+
+
+            // Damage using the most penetrating shell
+            var gunsMaxPenetrationDamage = new unresolvedExtraFileCol();
+            gunsMaxPenetrationDamage.PropertyId = new ExtraPropertyId("Guns", "MaxPenetrationDamage", "Wargaming");
+            gunsMaxPenetrationDamage.FileVersion = 0;
+            gunsMaxPenetrationDamage.Descriptions = new Dictionary<string, string>
+            {
+                { "Ru", "Урон пушкой/снарядом с лучшим пробитием (кроме голды)." },
+                { "En", "Damage using the most penetrating gun/shell (except premium shells)." },
+            };
+            gunsMaxPenetrationDamage.Entries = wd.Tanks.Select(tank =>
+            {
+                var shells = tank.Turrets.SelectMany(t => t.Guns).SelectMany(g => g.Shells).Where(s => !s.Gold);
+                return new ExtraEntry(tank.Id, (shells.Any() ? shells.MaxElement(s => s.PenetrationArmor).DamageArmor : 0).ToString(),
+                    installation.GameVersionId);
+            }).ToList();
+
+
+            // Top gun reload time
+            var gunsTopGunReloadTime = new unresolvedExtraFileCol();
+            gunsTopGunReloadTime.PropertyId = new ExtraPropertyId("Guns", "TopGunReloadTime", "Wargaming");
+            gunsTopGunReloadTime.FileVersion = 0;
+            gunsTopGunReloadTime.Descriptions = new Dictionary<string, string>
+            {
+                { "Ru", "Время перезарядки топового орудия." },
+                { "En", "Top gun reload time." },
+            };
+            gunsTopGunReloadTime.Entries = wd.Tanks.Select(tank =>
+                new ExtraEntry(tank.Id, (tank.TopGun == null ? 0 : tank.TopGun.ReloadTime).ToString(),
+                    installation.GameVersionId)
+            ).ToList();
+
 
             return Tuple.Create(builtin, new List<unresolvedExtraFileCol> { nameFull, nameShort, speedForward, speedReverse, armorHull, armorTurret,
                 visibility, hitPointsTotal, hasTurret, hasDrumAnyGun, hasDrumTopGun, hasWheels, gunsMaxPenetration, gunsMaxDamage, gunsMaxPenetrationDamage, gunsTopGunReloadTime });
@@ -557,7 +560,7 @@ namespace WotDataLib
             return resolveExtras(warnings, extra, origFilenames);
         }
 
-		private static HashSet<string> _languages = Enumerable.ToHashSet(EnumStrong.GetValues<Language>().Select(l => l.GetIsoLanguageCode()).Concat("en"), StringComparer.OrdinalIgnoreCase);
+        private static HashSet<string> _languages = Enumerable.ToHashSet(EnumStrong.GetValues<Language>().Select(l => l.GetIsoLanguageCode()).Concat("en"), StringComparer.OrdinalIgnoreCase);
 
         private static unresolvedBuiltIn loadBuiltInFile(int fileVersion, string filename)
         {
@@ -714,7 +717,6 @@ namespace WotDataLib
                             if (headerID.Length == 0)
                                 throw new WotDataUserError("If present, the ID header must have at least one value");
                             var ids = Enumerable.ToHashSet(headerID, StringComparer.OrdinalIgnoreCase);
-
                             if (ids.Count != headerID.Length)
                                 throw new WotDataUserError("Duplicate column IDs are not allowed");
                         }
